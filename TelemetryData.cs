@@ -5,7 +5,7 @@ namespace MergeTelemetry
 {
     public class TelemetryData
     {
-        public void SetCombinedFields()
+        public void ReworkFields()
         {
             if (!string.IsNullOrEmpty(Date) && !string.IsNullOrEmpty(Time))
             {
@@ -19,12 +19,7 @@ namespace MergeTelemetry
                 Latitude = double.Parse(gps[0], CultureInfo.InvariantCulture);
                 Longitude = double.Parse(gps[1], CultureInfo.InvariantCulture);
             }
-        }
-
-        public void FixValues()
-        {
-            Throttle += 2000;
-
+            if (Throttle != 0) Throttle += 2000;
         }
 
         public int LogSecond { get; set; }
@@ -86,5 +81,18 @@ namespace MergeTelemetry
         public double VBitrate { get; set; }
 
         public string DataSourceType { get; set; } = "CSV";
+
+        
+        public int AverageVDelay { get; set; }
+        public double AverageAltitude { get; set; }
+        public double AverageGpsSpeed { get; set; }
+        public double AverageVSpeed { get; set; }
+        public double AverageCurrentAmpere { get; set; }
+        public double AverageRxBt { get; set; }
+        public double AverageTPower { get; set; }
+        public double AverageRssi1 { get; set; }
+        public double AverageRssi2 { get; set; }
+        public double AverageRQly { get; set; }
+        public double AverageTQly { get; set; }
     }
 }

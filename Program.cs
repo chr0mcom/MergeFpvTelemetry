@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using CsvHelper;
 using CsvHelper.Configuration;
+using MathNet.Numerics.Statistics;
 
 namespace MergeTelemetry
 {
@@ -46,11 +47,11 @@ namespace MergeTelemetry
             if (csvFilePath == null || srtFilePath == null) return;
 
             List<TelemetryData> telemetryDatas = ParseCsv<TelemetryData>(csvFilePath).ToList();
-            telemetryDatas.ForEach(t => t.SetCombinedFields());
+            telemetryDatas.ForEach(t => t.ReworkFields());
             RemoveOldValues(telemetryDatas);
             telemetryDatas.AddRange(ParseSrt(srtFilePath, telemetryDatas[0].Date, telemetryDatas[0].Time));
             telemetryDatas = telemetryDatas.OrderBy(t => t.TimeStamp).ToList();
-            Prepare(telemetryDatas);
+            telemetryDatas = Prepare(telemetryDatas);
             FileInfo csvFileInfo = new FileInfo(csvFilePath);
             WriteCsv($"{csvFileInfo.DirectoryName}\\result_{csvFileInfo.Name.Replace(csvFileInfo.Extension, "").TrimEnd('.')}.csv", telemetryDatas);
         }
@@ -81,7 +82,7 @@ namespace MergeTelemetry
                 telemetryData.VrxBt = double.Parse(datas[4].Split(':')[1].TrimEnd('V'), CultureInfo.InvariantCulture);
                 telemetryData.VDelay = int.Parse(datas[7].Split(':')[1].Replace("ms", ""));
                 telemetryData.VBitrate = double.Parse(datas[8].Split(':')[1].Replace("Mbps", ""), CultureInfo.InvariantCulture);
-                telemetryData.SetCombinedFields();
+                telemetryData.ReworkFields();
                 telemetryDatas.Add(telemetryData);
             }
 
@@ -121,19 +122,35 @@ namespace MergeTelemetry
             telemetryDatas.RemoveRange(0, indexOfInteruptedTelemetryData);
         }
 
-        private static void Prepare(List<TelemetryData> telemetryDatas)
+        private static List<TelemetryData> Prepare(List<TelemetryData> telemetryDatas)
         {
+            List<TelemetryData> retTelemetryDatas = new List<TelemetryData>();
             TelemetryData lastTelemetryData = telemetryDatas.First();
             int startSeconds = (int)lastTelemetryData.TimeStamp.TimeOfDay.TotalSeconds;
-            foreach (TelemetryData telemetryData in telemetryDatas.ToList())
+            foreach (TelemetryData telemetryData in telemetryDatas)
             {
                 ReflectionHelper.Merge(lastTelemetryData, telemetryData, PropertyInfos.Values.ToList());
+                if (lastTelemetryData.TimeStamp.Second != telemetryData.TimeStamp.Second)
+                {
+                    telemetryData.LogSecond = (int) telemetryData.TimeStamp.TimeOfDay.TotalSeconds - startSeconds;
+                    retTelemetryDatas.Add(telemetryData);
 
-                if (lastTelemetryData.TimeStamp.Second == telemetryData.TimeStamp.Second)
-                    telemetryDatas.Remove(telemetryData);
-                else telemetryData.LogSecond = (int) telemetryData.TimeStamp.TimeOfDay.TotalSeconds - startSeconds;
+                    telemetryData.AverageVDelay = (int)retTelemetryDatas.Select(t => (double) t.VDelay).Mean();
+                    telemetryData.AverageAltitude = retTelemetryDatas.Select(t => t.Altitude).Mean();
+                    telemetryData.AverageGpsSpeed = retTelemetryDatas.Select(t => t.GpsSpeed).Mean();
+                    telemetryData.AverageVSpeed = retTelemetryDatas.Select(t => t.VSpeed).Mean();
+                    telemetryData.AverageCurrentAmpere = retTelemetryDatas.Select(t => t.CurrentAmpere).Mean();
+                    telemetryData.AverageRxBt = retTelemetryDatas.Select(t => t.RxBt).Mean();
+                    telemetryData.AverageTPower = retTelemetryDatas.Select(t => t.TPower).Mean();
+                    telemetryData.AverageRssi1 = retTelemetryDatas.Select(t => t.Rssi1).Mean();
+                    telemetryData.AverageRssi2 = retTelemetryDatas.Select(t => t.Rssi2).Mean();
+                    telemetryData.AverageRQly = retTelemetryDatas.Select(t => t.RQly).Mean();
+                    telemetryData.AverageTQly = retTelemetryDatas.Select(t => t.TQly).Mean();
+                }
                 lastTelemetryData = telemetryData;
             }
+
+            return retTelemetryDatas;
         }
 
         private static string PrepareHeaderForMatch(PrepareHeaderForMatchArgs args)
