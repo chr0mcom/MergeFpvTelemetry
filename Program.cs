@@ -33,27 +33,30 @@ namespace MergeTelemetry
             {
                 DirectoryInfo directoryInfo = new DirectoryInfo(Environment.CurrentDirectory);
 
-                foreach (FileInfo fileInfo in directoryInfo.GetFiles())
+                foreach (FileInfo file in directoryInfo.GetFiles())
                 {
-                    if (fileInfo.Extension.ToLower().EndsWith("csv"))
+                    if (file.Extension.ToLower().EndsWith("csv"))
                     {
-                        csvFilePath = fileInfo.FullName;
+                        csvFilePath = file.FullName;
                         continue;
                     }
-                    if (fileInfo.Extension.ToLower().EndsWith("srt")) srtFilePath = fileInfo.FullName;
+                    if (file.Extension.ToLower().EndsWith("srt")) srtFilePath = file.FullName;
                 }
             }
 
-            if (csvFilePath == null || srtFilePath == null) return;
+            if (csvFilePath == null && srtFilePath == null) return;
 
-            List<TelemetryData> telemetryDatas = ParseCsv<TelemetryData>(csvFilePath).ToList();
+            List<TelemetryData> telemetryDatas = new List<TelemetryData>();
+            if (csvFilePath != null) telemetryDatas.AddRange(ParseCsv<TelemetryData>(csvFilePath));
+            else telemetryDatas.Add(new TelemetryData {TimeStamp = File.GetCreationTime(srtFilePath)});
             telemetryDatas.ForEach(t => t.ReworkFields());
             RemoveOldValues(telemetryDatas);
-            telemetryDatas.AddRange(ParseSrt(srtFilePath, telemetryDatas[0].Date, telemetryDatas[0].Time));
-            telemetryDatas = telemetryDatas.OrderBy(t => t.TimeStamp).ToList();
-            telemetryDatas = Prepare(telemetryDatas);
-            FileInfo csvFileInfo = new FileInfo(csvFilePath);
-            WriteCsv($"{csvFileInfo.DirectoryName}\\result_{csvFileInfo.Name.Replace(csvFileInfo.Extension, "").TrimEnd('.')}.csv", telemetryDatas);
+
+            if (srtFilePath != null) telemetryDatas.AddRange(ParseSrt(srtFilePath, telemetryDatas[0].TimeStamp.ToShortDateString(), telemetryDatas[0].TimeStamp.ToShortTimeString()));
+
+            telemetryDatas = Prepare(telemetryDatas.OrderBy(t => t.TimeStamp));
+            FileInfo fileInfo = new FileInfo(csvFilePath ?? srtFilePath);
+            WriteCsv($"{fileInfo.DirectoryName}\\result_{fileInfo.Name.Replace(fileInfo.Extension, "").TrimEnd('.')}.csv", telemetryDatas);
         }
 
         private static void WriteCsv(string filePath, List<TelemetryData> telemetryDatas)
@@ -102,8 +105,11 @@ namespace MergeTelemetry
 
         private static void RemoveOldValues(List<TelemetryData> telemetryDatas)
         {
-            telemetryDatas.RemoveAt(0);
-            telemetryDatas.RemoveAt(telemetryDatas.Count - 1);
+            if (telemetryDatas.Count > 10)
+            {
+                telemetryDatas.RemoveAt(0);
+                telemetryDatas.RemoveAt(telemetryDatas.Count - 1);
+            }
             TelemetryData lastTelemetryData = telemetryDatas.First();
             TelemetryData interuptedTelemetryData = null;
             foreach (TelemetryData telemetryData in telemetryDatas)
@@ -122,7 +128,7 @@ namespace MergeTelemetry
             telemetryDatas.RemoveRange(0, indexOfInteruptedTelemetryData);
         }
 
-        private static List<TelemetryData> Prepare(List<TelemetryData> telemetryDatas)
+        private static List<TelemetryData> Prepare(IEnumerable<TelemetryData> telemetryDatas)
         {
             List<TelemetryData> retTelemetryDatas = new List<TelemetryData>();
             TelemetryData lastTelemetryData = telemetryDatas.First();
