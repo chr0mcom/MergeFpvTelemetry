@@ -52,7 +52,7 @@ namespace MergeTelemetry
             telemetryDatas.ForEach(t => t.ReworkFields());
             RemoveOldValues(telemetryDatas);
 
-            if (srtFilePath != null) telemetryDatas.AddRange(ParseSrt(srtFilePath, telemetryDatas[0].TimeStamp.ToShortDateString(), telemetryDatas[0].TimeStamp.ToShortTimeString()));
+            if (srtFilePath != null) telemetryDatas.AddRange(ParseSrt(srtFilePath, telemetryDatas[0].TimeStamp.ToShortDateString(), telemetryDatas[0].TimeStamp.ToString("HH:mm:ss.ffff")));
 
             telemetryDatas = Prepare(telemetryDatas.OrderBy(t => t.TimeStamp));
             FileInfo fileInfo = new FileInfo(csvFilePath ?? srtFilePath);
@@ -76,10 +76,8 @@ namespace MergeTelemetry
             {
                 if (string.IsNullOrEmpty(line)) continue;
                 TelemetryData telemetryData = new TelemetryData {Date = date, DataSourceType = "Srt"};
-                //00:00:00,050 --> 00:00:00,283
                 string timestampLine = reader.ReadLine();
                 telemetryData.Time = TimeSpan.Parse(timestampLine.Split(' ')[0]).Add(addTimeSpan).ToString();
-                //signal:4 ch:1 flightTime:0 uavBat:23.7V glsBat:15.3V uavBatCells:6 glsBatCells:4 delay:27ms bitrate:25.4Mbps rcSignal:0
                 string dataLine = reader.ReadLine();
                 string[] datas = dataLine.Split(' ');
                 telemetryData.VrxBt = double.Parse(datas[4].Split(':')[1].TrimEnd('V'), CultureInfo.InvariantCulture);
