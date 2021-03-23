@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Globalization;
+using CsvHelper.Configuration.Attributes;
+using GeoCoordinatePortable;
+using MergeTelemetry.Attributes;
 
 namespace MergeTelemetry
 {
-    public class TelemetryData
+    public class TelemetryData : IPosition
     {
         public void ReworkFields()
         {
@@ -22,7 +25,7 @@ namespace MergeTelemetry
             if (Throttle != 0) Throttle += 2000;
         }
 
-        public int LogSecond { get; set; }
+        [MergeIgnore] public int LogSecond { get; set; }
 
         public DateTime TimeStamp { get; set; }
 
@@ -80,8 +83,11 @@ namespace MergeTelemetry
         
         public double VBitrate { get; set; }
 
-        public string DataSourceType { get; set; } = "CSV";
+        public double Heading { get; set; }
 
+        public double DistanceToHome { get; set; }
+
+        public string DataSourceType { get; set; } = "CSV";
         
         public int AverageVDelay { get; set; }
         public double AverageAltitude { get; set; }

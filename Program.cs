@@ -129,17 +129,19 @@ namespace MergeTelemetry
         private static List<TelemetryData> Prepare(IEnumerable<TelemetryData> telemetryDatas)
         {
             List<TelemetryData> retTelemetryDatas = new List<TelemetryData>();
+            List<TelemetryData> telemetryDataList = telemetryDatas.ToList();
+            TelemetryData firstTelemetryData = telemetryDatas.First();
             TelemetryData lastTelemetryData = telemetryDatas.First();
             int startSeconds = (int)lastTelemetryData.TimeStamp.TimeOfDay.TotalSeconds;
-            foreach (TelemetryData telemetryData in telemetryDatas)
+            for (int index = 0; index < telemetryDataList.Count; index++)
             {
+                TelemetryData telemetryData = telemetryDataList[index];
                 ReflectionHelper.Merge(lastTelemetryData, telemetryData, PropertyInfos.Values.ToList());
                 if (lastTelemetryData.TimeStamp.Second != telemetryData.TimeStamp.Second)
                 {
                     telemetryData.LogSecond = (int) telemetryData.TimeStamp.TimeOfDay.TotalSeconds - startSeconds;
                     retTelemetryDatas.Add(telemetryData);
-
-                    telemetryData.AverageVDelay = (int)retTelemetryDatas.Select(t => (double) t.VDelay).Mean();
+                    telemetryData.AverageVDelay = (int) retTelemetryDatas.Select(t => (double) t.VDelay).Mean();
                     telemetryData.AverageAltitude = retTelemetryDatas.Select(t => t.Altitude).Mean();
                     telemetryData.AverageGpsSpeed = retTelemetryDatas.Select(t => t.GpsSpeed).Mean();
                     telemetryData.AverageVSpeed = retTelemetryDatas.Select(t => t.VSpeed).Mean();
@@ -150,7 +152,17 @@ namespace MergeTelemetry
                     telemetryData.AverageRssi2 = retTelemetryDatas.Select(t => t.Rssi2).Mean();
                     telemetryData.AverageRQly = retTelemetryDatas.Select(t => t.RQly).Mean();
                     telemetryData.AverageTQly = retTelemetryDatas.Select(t => t.TQly).Mean();
+                    telemetryData.DistanceToHome = GpsCalculationHelper.CalculateDistance(firstTelemetryData, telemetryData);
+                    if (index > 5)
+                    {
+                        double bearing1 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 4], telemetryDataList[index + 1]);
+                        double bearing2 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 5], telemetryData);
+                        double bearing3 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 6], telemetryDataList[index - 1]);
+                        telemetryData.Heading = new double[3] {bearing1, bearing2, bearing3}.Mean();
+                    }
+                    else telemetryData.Heading = 1;
                 }
+
                 lastTelemetryData = telemetryData;
             }
 

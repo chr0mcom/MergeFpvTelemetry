@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using MergeTelemetry.Attributes;
 
 namespace MergeTelemetry
 {
@@ -17,6 +18,7 @@ namespace MergeTelemetry
             
             foreach(PropertyInfo propertyInfo in propertyInfos)
             {
+                if (propertyInfo.GetCustomAttribute<MergeIgnoreAttribute>() != null) continue;
                 object targetValue = propertyInfo.GetValue(target);
                 object targetPropertyTypeDefaultValue = GetDefault(propertyInfo.PropertyType);
 
