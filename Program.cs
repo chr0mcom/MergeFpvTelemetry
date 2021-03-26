@@ -133,9 +133,8 @@ namespace MergeTelemetry
             TelemetryData firstTelemetryData = telemetryDatas.First();
             TelemetryData lastTelemetryData = telemetryDatas.First();
             int startSeconds = (int)lastTelemetryData.TimeStamp.TimeOfDay.TotalSeconds;
-            for (int index = 0; index < telemetryDataList.Count; index++)
+            foreach (TelemetryData telemetryData in telemetryDataList)
             {
-                TelemetryData telemetryData = telemetryDataList[index];
                 ReflectionHelper.Merge(lastTelemetryData, telemetryData, PropertyInfos.Values.ToList());
                 if (lastTelemetryData.TimeStamp.Second != telemetryData.TimeStamp.Second)
                 {
@@ -153,17 +152,26 @@ namespace MergeTelemetry
                     telemetryData.AverageRQly = retTelemetryDatas.Select(t => t.RQly).Mean();
                     telemetryData.AverageTQly = retTelemetryDatas.Select(t => t.TQly).Mean();
                     telemetryData.DistanceToHome = GpsCalculationHelper.CalculateDistance(firstTelemetryData, telemetryData);
-                    if (index > 5)
-                    {
-                        double bearing1 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 4], telemetryDataList[index + 1]);
-                        double bearing2 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 5], telemetryData);
-                        double bearing3 = GpsCalculationHelper.CalculateBearing(telemetryDataList[index - 6], telemetryDataList[index - 1]);
-                        telemetryData.Heading = new double[3] {bearing1, bearing2, bearing3}.Mean();
-                    }
-                    else telemetryData.Heading = 1;
                 }
-
+                telemetryData.Heading = GpsCalculationHelper.CalculateBearing(lastTelemetryData, telemetryData, lastTelemetryData.Heading);
                 lastTelemetryData = telemetryData;
+            }
+
+            if (telemetryDataList.Count > 1)
+            {
+                telemetryDataList[0].Heading = telemetryDataList[1].Heading;
+                double bearingChangeMax = 45;
+                for (int index = 1; index < telemetryDataList.Count - 1; index++)
+                {
+                    TelemetryData telemetryData = telemetryDataList[index];
+                    TelemetryData telemetryDataBefore = telemetryDataList[index-1];
+                    TelemetryData telemetryDataAfter = telemetryDataList[index+1];
+
+                    if (Math.Abs(telemetryData.Heading - telemetryDataBefore.Heading) > bearingChangeMax)
+                    {
+                        if (Math.Abs(telemetryDataAfter.Heading - telemetryDataBefore.Heading) < bearingChangeMax) telemetryData.Heading = new[] {telemetryDataBefore.Heading, telemetryDataAfter.Heading}.Mean();
+                    }
+                }
             }
 
             return retTelemetryDatas;
